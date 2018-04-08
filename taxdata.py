@@ -83,6 +83,37 @@ class Trades:
 
         return Trades(trades)
 
+    @staticmethod
+    def read_fees_from(filename):
+        with open(filename, encoding='utf-8') as f:
+            lines = [line for line in csv.reader(f, delimiter=',', quotechar='"')]
+
+        def indices(col_name):
+            return [index for index, col in enumerate(lines[0]) if col == col_name]
+
+        date_index = indices('Trade Date')[0]
+        fee_coin_index = indices('Cur.')[0]
+        fee_amount_index = indices('Fee')[0]
+        fee_value_index = indices('Fee valueat transaction in SEK')[0]
+
+        trades = []
+        for line in lines[1:]:
+            trades.append(Trade(
+                datetime.strptime(line[date_index], "%d.%m.%Y %H:%M"),
+                "Fee",
+                None,
+                None,
+                None,
+                None,
+                None if line[fee_coin_index] == '-' else line[fee_coin_index],
+                None if line[fee_amount_index] == '-' else float(line[fee_amount_index]),
+                None if line[fee_value_index] == '-' else float(line[fee_value_index])
+            ))
+
+        trades.sort(key=lambda x: x.date)
+
+        return Trades(trades)
+
 
 class TaxEvent:
     def __init__(self, amount, name:str, income, cost):

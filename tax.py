@@ -68,6 +68,13 @@ def compute_tax(trades, from_date, to_date, native_currency='SEK', exclude_group
                 if trade.date >= from_date:
                     tax_events.append(tax_event)
         
+        elif trade.type == 'Fee':
+            sell_coin = get_sell_coin(trade)
+            if sell_coin:
+                tax_event = sell_coin.sell(trade.sell_amount, trade.sell_value)
+                if trade.date >= from_date:
+                    tax_events.append(tax_event)
+
         elif trade.type == 'Mining':
             buy_coin = get_buy_coin(trade)
             if buy_coin:

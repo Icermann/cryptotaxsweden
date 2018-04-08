@@ -27,6 +27,11 @@ opts = parser.parse_args()
 
 personal_details = PersonalDetails.read_from("data/personal_details.json")
 trades = Trades.read_from(opts.trades)
+if os.path.exists("data/fees.csv"):
+    fees = Trades.read_fees_from("data/fees.csv")
+    trades.trades.extend(fees.trades)
+    trades.trades.sort(key=lambda x: x.date)
+
 stock_tax_events = TaxEvent.read_stock_tax_events_from("data/stocks.json") if os.path.exists("data/stocks.json") else None
 
 tax_events = tax.compute_tax(trades,
