@@ -3,6 +3,8 @@ import os
 from taxdata import TaxEvent, Trade
 from k4page import K4Section, K4Page
 
+import numbers
+
 
 def is_fiat(coin):
     return coin in ["EUR", "USD", "SEK"]
@@ -151,10 +153,15 @@ def generate_k4_pages(year, personal_details, tax_events, stock_tax_events=None)
             k4_fields = event.k4_fields()
             line = []
             for (field_index, field) in enumerate(k4_fields):
-                if field_index > 3:
-                    line.append(str(field) if field else None)
+                if isinstance(field, numbers.Number):
+                    field_str = '{:.10f}'.format(float('{:.8f}'.format(field))).rstrip('0').rstrip('.')[:10]
                 else:
-                    line.append(str(field) if field else "0")
+                    field_str = str(field)
+
+                if field_index > 3:
+                    line.append(field_str if field else None)
+                else:
+                    line.append(field_str if field else "0")
                 if field_index > 1 and field:
                     num_sums[field_index-2] += field
             lines.append(line)
