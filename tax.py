@@ -14,40 +14,44 @@ class Coin:
     def __init__(self, symbol):
         self.symbol = symbol
         self.amount = 0.0
-        self.cost_basis = 0.0
+        self.cost = 0.0
 
-    def buy(self, amount:float, price:float):
-        new_amount = self.amount + amount
-        self.cost_basis = (self.cost_basis * self.amount + price) / new_amount
-        self.amount = new_amount
+    def buy(self, amount: float, price: float):
+        self.amount = self.amount + amount
+        self.cost = self.cost + price
 
-    def sell(self, amount:float, price:float) -> TaxEvent:
+    def sell(self, amount: float, price: float) -> TaxEvent:
         amount_left = self.amount - amount
         if amount_left < -1e-9:
             raise Exception(f"Not enough coins available for {self.symbol}, {self.amount} < {amount}.")
         if amount_left < 0.0:
             amount_left = 0.0
 
-        tax_event = TaxEvent(amount, self.symbol, price, self.cost_basis * amount)
+        cost = self.avg_cost_basis() * amount
+        tax_event = TaxEvent(amount, self.symbol, price, cost)
 
         self.amount = amount_left
+        self.cost -= cost
 
         return tax_event
+
+    def avg_cost_basis(self):
+        return self.cost / self.amount
 
 
 def compute_tax(trades, from_date, to_date, native_currency='SEK', exclude_groups=[], coin_report_filename=None):
     tax_events = []
     coins = {}
 
-    def get_buy_coin(trade:Trade):
-        if trade.buy_coin == native_currency:
+    def get_buy_coin(trade: Trade) -> Coin:
+        if is_fiat(trade.buy_coin):
             return None
         if trade.buy_coin not in coins:
             coins[trade.buy_coin] = Coin(trade.buy_coin)
         return coins[trade.buy_coin]
 
-    def get_sell_coin(trade:Trade):
-        if trade.sell_coin == native_currency:
+    def get_sell_coin(trade: Trade) -> Coin:
+        if is_fiat(trade.sell_coin):
             return None
         if trade.sell_coin not in coins:
             raise Exception(f"Selling currency {trade.sell_coin} which has not been bought yet")
@@ -61,12 +65,18 @@ def compute_tax(trades, from_date, to_date, native_currency='SEK', exclude_group
 
         if trade.type == 'Trade':
             buy_coin = get_buy_coin(trade)
-            if buy_coin:
-                buy_coin.buy(trade.buy_amount, trade.buy_value)
-
             sell_coin = get_sell_coin(trade)
+
+            if is_fiat(trade.sell_coin):
+                tax_value = trade.sell_value
+            else:
+                tax_value = trade.buy_value
+
+            if buy_coin:
+                buy_coin.buy(trade.buy_amount, tax_value)
+
             if sell_coin:
-                tax_event = sell_coin.sell(trade.sell_amount, trade.sell_value)
+                tax_event = sell_coin.sell(trade.sell_amount, tax_value)
                 if trade.date >= from_date:
                     tax_events.append(tax_event)
         
@@ -89,11 +99,11 @@ def compute_tax(trades, from_date, to_date, native_currency='SEK', exclude_group
 
     if coin_report_filename:
         with open(coin_report_filename, "w") as f:
-            f.write("Amount\tCoin\tCost basis\n")
+            f.write("Amount\tCoin\tCost basis\tAvg cost basis\n")
             coin_list = [coin for (_, coin) in coins.items() if coin.amount > 1e-9]
             coin_list.sort(key=lambda coin: coin.symbol)
             for coin in coin_list:
-                f.write(f"{coin.amount}\t{coin.symbol}\t{coin.cost_basis}\n")
+                f.write(f"{coin.amount}\t{coin.symbol}\t{coin.cost}\t{coin.avg_cost_basis()}\n")
 
     return tax_events
 

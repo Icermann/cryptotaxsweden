@@ -116,7 +116,7 @@ class Trades:
 
 
 class TaxEvent:
-    def __init__(self, amount, name:str, income, cost):
+    def __init__(self, amount, name: str, income, cost):
         self.amount = amount
         self.name = name
         self.income = income
